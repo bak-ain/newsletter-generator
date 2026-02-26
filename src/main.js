@@ -904,11 +904,16 @@ async function exportEmailHtml() {
       if (original.classList.contains('article-image')) {
         el.style.cssText += 'width:100%; height:160px; overflow:hidden; background-color:#f8f9fa;';
       }
+      // Re-add padding to the content wrapper
+      if (original.classList.contains('article-content')) {
+        el.style.cssText += 'padding:16px; display:block;';
+      }
+      // Fix vertical text cut-off by using max-height and explicit margins
       if (original.classList.contains('article-title')) {
-        el.style.cssText += 'display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-overflow:ellipsis;height:48px;line-height:24px;margin-bottom:8px;';
+        el.style.cssText += 'display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-overflow:ellipsis;max-height:48px;line-height:24px;margin-bottom:12px;display:block;';
       }
       if (original.classList.contains('article-excerpt')) {
-        el.style.cssText += 'display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-overflow:ellipsis;height:44px;line-height:22px;margin-bottom:12px;';
+        el.style.cssText += 'display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-overflow:ellipsis;max-height:44px;line-height:22px;margin-bottom:16px;display:block;';
       }
     }
 
@@ -1003,18 +1008,37 @@ async function exportEmailHtml() {
         el.setAttribute('width', String(iconSize));
         el.setAttribute('height', String(iconSize));
       }
+      // Restore card gaps and inner flex alignment
+      if (original.classList.contains('crypto-card')) {
+        el.style.cssText += 'margin-bottom:12px; padding:16px; border:1px solid #E8ECF0; border-radius:12px; display:block;';
+      }
+      if (original.classList.contains('crypto-header')) {
+        el.style.cssText += 'margin-bottom:8px; display:block;';
+      }
+      // Fix gap between icon and coin name
+      if (original.classList.contains('crypto-name')) {
+        el.style.cssText += 'margin-left:8px; display:inline-block; vertical-align:middle;';
+      }
+      if (el.tagName === 'IMG' && original.classList.contains('crypto-icon')) {
+        el.style.display = 'inline-block';
+        el.style.verticalAlign = 'middle';
+      }
     }
 
     // === Schedule 섹션 여백 추가 ===
     if (original.closest && original.closest('.schedule-section')) {
       if (original.classList.contains('schedule-list')) {
-        el.style.cssText += 'padding:12px;';
+        el.style.cssText += 'padding:12px; display:block;';
       }
       if (original.classList.contains('schedule-item')) {
-        el.style.cssText += 'padding:12px; margin-bottom:4px;';
+        el.style.cssText += 'padding:16px 12px; margin-bottom:8px; border-bottom:1px solid #F0F3F6; display:block;';
       }
       if (original.classList.contains('schedule-column')) {
-        el.style.cssText += 'margin-bottom:16px;';
+        el.style.cssText += 'margin-bottom:24px; display:block;';
+      }
+      // Fix layout between date block and content block
+      if (original.classList.contains('schedule-date-block')) {
+        el.style.cssText += 'margin-right:16px; min-width:48px; text-align:center;';
       }
     }
 
