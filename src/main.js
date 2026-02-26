@@ -738,6 +738,13 @@ async function exportEmailHtml() {
   const clone = container.cloneNode(true);
   clone.querySelectorAll('script, style, iframe, audio, video, embed, object, noscript, form, meta, button, input, select, textarea, .top-bar, .btn-fetch, .btn-primary-sm').forEach(el => el.remove());
 
+  // Remove HTML developer comments to save space
+  const walk = document.createTreeWalker(clone, NodeFilter.SHOW_COMMENT, null, false);
+  const comments = [];
+  let n;
+  while (n = walk.nextNode()) comments.push(n);
+  comments.forEach(c => c.remove());
+
   // 4. Email-safe properties (Gmail strips flex, grid, gap, aspect-ratio)
   const emailSafeProps = [
     'background-color', 'border', 'border-radius', 'border-bottom', 'border-top',
@@ -764,7 +771,7 @@ async function exportEmailHtml() {
     const original = allOriginals[i];
     if (!original) return;
     const computed = window.getComputedStyle(original);
-    let inlineStyle = 'box-sizing:border-box;';
+    let inlineStyle = '';
 
     // === Display & Layout (email-safe) ===
     const display = computed.display;
@@ -796,8 +803,16 @@ async function exportEmailHtml() {
       }
       inlineStyle += 'display:block;width:100%;';
     } else {
-      inlineStyle += `display:${display === 'inline' || display === 'inline-block' ? display : 'block'};`;
+      // Don't inject 'display: block' for block-level tags to save bytes
+      if (display === 'inline' || display === 'inline-block') {
+        inlineStyle += `display:${display};`;
+      } else if (!['DIV', 'P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'LI', 'SECTION', 'ARTICLE', 'HEADER', 'FOOTER'].includes(el.tagName)) {
+        inlineStyle += 'display:block;';
+      }
     }
+
+    const parentComputed = original.parentElement ? window.getComputedStyle(original.parentElement) : null;
+    const inheritableProps = ['color', 'font-family', 'font-size', 'font-weight', 'line-height', 'text-align', 'letter-spacing', 'word-break', 'overflow-wrap'];
 
     // === Inline email-safe CSS properties ===
     emailSafeProps.forEach(prop => {
@@ -805,9 +820,19 @@ async function exportEmailHtml() {
       if (!val) return;
       if (skipValues[prop] === val) return;
       if (val === 'initial' || val === 'none' || val === 'normal') return;
-      if (prop === 'margin' && val === '0px') return;
-      if (prop === 'padding' && val === '0px') return;
-      if (prop === 'border' && val.includes('0px none')) return;
+
+      // Aggressive size reduction: Strip all 0px properties
+      if (val === '0px' || val === '0px 0px 0px 0px' || val === '0') return;
+      // Strip transparent backgrounds / colors
+      if (val === 'rgba(0, 0, 0, 0)' || val === 'transparent') return;
+      // Strip empty borders
+      if (prop.startsWith('border') && (val.includes('0px none') || val.includes('none 0px') || val.includes('transparent'))) return;
+
+      // [CRITICAL OPTIMIZATION] Inheritance Skipping
+      // If the parent has the exact same value for an inheritable property, skip it to save tons of space!
+      if (parentComputed && inheritableProps.includes(prop)) {
+        if (parentComputed.getPropertyValue(prop) === val) return;
+      }
 
       // [Fix] Korean mail clients (Naver, Daum) aggressively strip "width" and "height" strings from <a> tags.
       // This turns 'line-height:22px' into 'line-:22px', causing syntax errors that break the entire style.
