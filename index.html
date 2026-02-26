@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>뉴스레터 생성기 | Newsletter Generator</title>
+  <meta name="description" content="금융 뉴스레터 HTML 생성기 - 기사, 암호화폐 시세, 캘린더를 포함한 프리미엄 뉴스레터" />
+  <!-- Pretendard font loaded via @font-face in style.css -->
+  <link rel="stylesheet" href="/src/style.css" />
+  <link rel="icon" href="https://s1.tokenpost.kr/assets/images/tokenpost/common/faviconV2.ico" />
+</head>
+
+<body>
+  <div class="app-container">
+    <!-- ===== EDITOR PANEL (LEFT) ===== -->
+    <aside class="editor-panel">
+      <div class="editor-header">
+        <h1 class="editor-title">Editor</h1>
+        <div class="editor-actions">
+          <button id="btnExportHtml" class="btn-primary">HTML 내보내기</button>
+        </div>
+      </div>
+
+      <div class="editor-body">
+        <!-- 1. Header & Global -->
+        <details class="editor-section" open name="editor">
+          <summary class="section-label">기본 정보</summary>
+          <div class="section-content">
+            <div class="field-group">
+              <label>발행일</label>
+              <input type="text" id="edit-date" placeholder="2026년 2월 13일 금요일">
+            </div>
+          </div>
+        </details>
+
+        <!-- 3. News Articles (Scraping) -->
+        <details class="editor-section" name="editor">
+          <summary class="section-label">기사 (News)</summary>
+          <div class="section-content">
+            <div id="article-fields-container">
+              <!-- Article 0-4 -->
+              <div class="article-edit-block" data-index="0">
+                <div class="block-header">News Article (1)</div>
+                <div class="url-input-wrap">
+                  <input type="text" class="edit-url" placeholder="기사 URL 입력">
+                  <button class="btn-fetch">가져오기</button>
+                </div>
+                <input type="text" class="edit-title" placeholder="제목">
+                <textarea class="edit-excerpt" placeholder="내용 요약" rows="2"></textarea>
+                <div class="inline-fields">
+                  <input type="text" class="edit-image" placeholder="이미지 URL">
+                  <input type="text" class="edit-author" placeholder="출처/작성자">
+                  <input type="text" class="edit-time" placeholder="시간 (예: 2시간 전)">
+                </div>
+              </div>
+
+              <div class="article-edit-block" data-index="1">
+                <div class="block-header">News Article (2)</div>
+                <div class="url-input-wrap">
+                  <input type="text" class="edit-url" placeholder="기사 URL 입력">
+                  <button class="btn-fetch">가져오기</button>
+                </div>
+                <input type="text" class="edit-title" placeholder="제목">
+                <textarea class="edit-excerpt" placeholder="내용 요약" rows="2"></textarea>
+                <div class="inline-fields">
+                  <input type="text" class="edit-image" placeholder="이미지 URL">
+                  <input type="text" class="edit-author" placeholder="출처/작성자">
+                  <input type="text" class="edit-time" placeholder="시간 (예: 2시간 전)">
+                </div>
+              </div>
+
+              <div class="article-edit-block" data-index="2">
+                <div class="block-header">News Article (3)</div>
+                <div class="url-input-wrap">
+                  <input type="text" class="edit-url" placeholder="기사 URL 입력">
+                  <button class="btn-fetch">가져오기</button>
+                </div>
+                <input type="text" class="edit-title" placeholder="제목">
+                <textarea class="edit-excerpt" placeholder="내용 요약" rows="2"></textarea>
+                <div class="inline-fields">
+                  <input type="text" class="edit-image" placeholder="이미지 URL">
+                  <input type="text" class="edit-author" placeholder="출처/작성자">
+                  <input type="text" class="edit-time" placeholder="시간 (예: 2시간 전)">
+                </div>
+              </div>
+
+              <div class="article-edit-block" data-index="3">
+                <div class="block-header">News Article (4)</div>
+                <div class="url-input-wrap">
+                  <input type="text" class="edit-url" placeholder="기사 URL 입력">
+                  <button class="btn-fetch">가져오기</button>
+                </div>
+                <input type="text" class="edit-title" placeholder="제목">
+                <textarea class="edit-excerpt" placeholder="내용 요약" rows="2"></textarea>
+                <div class="inline-fields">
+                  <input type="text" class="edit-image" placeholder="이미지 URL">
+                  <input type="text" class="edit-author" placeholder="출처/작성자">
+                  <input type="text" class="edit-time" placeholder="시간 (예: 2시간 전)">
+                </div>
+              </div>
+
+              <div class="article-edit-block" data-index="4">
+                <div class="block-header">News Article (5)</div>
+                <div class="url-input-wrap">
+                  <input type="text" class="edit-url" placeholder="기사 URL 입력">
+                  <button class="btn-fetch">가져오기</button>
+                </div>
+                <input type="text" class="edit-title" placeholder="제목">
+                <textarea class="edit-excerpt" placeholder="내용 요약" rows="2"></textarea>
+                <div class="inline-fields">
+                  <input type="text" class="edit-image" placeholder="이미지 URL">
+                  <input type="text" class="edit-author" placeholder="출처/작성자">
+                  <input type="text" class="edit-time" placeholder="시간 (예: 2시간 전)">
+                </div>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <!-- 4. Research -->
+        <details class="editor-section" name="editor">
+          <summary class="section-label">리서치 (Research)</summary>
+          <div class="section-content">
+            <div class="article-edit-block" id="research-edit-block">
+              <div class="url-input-wrap">
+                <input type="text" class="edit-url" placeholder="리서치 URL 입력">
+                <button class="btn-fetch">가져오기</button>
+              </div>
+              <input type="text" class="edit-title" placeholder="제목">
+              <textarea class="edit-excerpt" placeholder="내용 요약" rows="2"></textarea>
+              <div class="inline-fields">
+                <input type="text" class="edit-image" placeholder="이미지 URL">
+                <input type="text" class="edit-category" placeholder="카테고리 (예: 심층 분석)">
+              </div>
+              <div class="inline-fields">
+                <input type="text" class="edit-author" placeholder="작성자/연구소">
+                <input type="text" class="edit-role" placeholder="직함 (예: Senior Analyst)">
+                <input type="text" class="edit-profile" placeholder="프로필 이미지 URL">
+              </div>
+              <div class="inline-fields">
+                <input type="text" class="edit-readtime" placeholder="읽기 시간 (예: 15 min read)">
+                <input type="text" class="edit-charts" placeholder="차트 수 (예: 32 charts)">
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <!-- 5. Schedule -->
+        <details class="editor-section" name="editor">
+          <summary class="section-label">주요 일정 (Schedule)</summary>
+          <div class="section-content">
+            <div class="field-group">
+              <h3 style="font-size: 12px; margin-bottom: 8px;">Macro & Token Events</h3>
+              <button id="btn-fetch-schedule" class="btn-primary-sm"
+                style="margin-bottom: 8px; width: 100%; background: #10b981; border-color: #10b981;">📊 시트에서
+                불러오기</button>
+              <div id="schedule-edit-container">
+                <!-- Items added via JS -->
+              </div>
+              <button id="btn-add-schedule" class="btn-primary-sm" style="margin-top: 8px; width: 100%;">+ 일정
+                추가</button>
+            </div>
+          </div>
+        </details>
+      </div>
+    </aside>
+
+    <!-- ===== PREVIEW PANEL (RIGHT) ===== -->
+    <main class="preview-panel">
+      <div class="newsletter-container" id="newsletterPreview">
+        <!-- Newsletter Header -->
+        <section class="newsletter-header">
+          <div class="newsletter-header-content">
+            <div class="header-label">DAILY NEWSLETTER</div>
+            <img src="https://s1.tokenpost.kr/assets/images/tokenpost_new/common_new/logo_bottom1.png" alt="TOKENPOST"
+              class="header-logo-img" />
+            <p class="header-subtitle">블록체인 & 디지털 자산 일일 브리핑</p>
+            <div class="header-meta">
+              <span class="header-date" id="headerDate">2026년 2월 13일 금요일</span>
+            </div>
+          </div>
+
+        </section>
+
+        <!-- ===== 1. TOP NEWS (with Headlines) ===== -->
+        <section class="section news-section">
+          <div class="section-header">
+
+            <h2 class="section-title">오늘의 주요 뉴스</h2>
+            <span class="section-badge">TOP 5</span>
+          </div>
+
+          <!-- Headline Summary -->
+          <div class="headline-list">
+            <div class="headline-item" data-index="0">
+              <span class="headline-number">01</span>
+              <span class="headline-text">헤드라인 1</span>
+            </div>
+            <div class="headline-item" data-index="1">
+              <span class="headline-number">02</span>
+              <span class="headline-text">헤드라인 2</span>
+            </div>
+            <div class="headline-item" data-index="2">
+              <span class="headline-number">03</span>
+              <span class="headline-text">헤드라인 3</span>
+            </div>
+            <div class="headline-item" data-index="3">
+              <span class="headline-number">04</span>
+              <span class="headline-text">헤드라인 4</span>
+            </div>
+            <div class="headline-item" data-index="4">
+              <span class="headline-number">05</span>
+              <span class="headline-text">헤드라인 5</span>
+            </div>
+          </div>
+
+          <!-- Featured Article (1st) -->
+          <article class="article-card featured" id="preview-article-0">
+            <div class="article-image">
+              <img src="" alt="Bitcoin" loading="lazy" />
+
+            </div>
+            <div class="article-content">
+              <h3 class="article-title"></h3>
+              <p class="article-excerpt"></p>
+
+              <a href="#" class="btn-read">
+                기사 원문 보기
+
+              </a>
+            </div>
+          </article>
+
+          <!-- Article Grid (2nd-5th) -->
+          <div class="article-grid">
+            <article class="article-card" id="preview-article-1">
+              <div class="article-image">
+                <img src="" alt="" loading="lazy" />
+
+              </div>
+              <div class="article-content">
+                <h3 class="article-title"></h3>
+                <p class="article-excerpt"></p>
+
+                <a href="#" class="btn-read">
+                  기사 원문 보기
+
+                </a>
+              </div>
+            </article>
+
+            <article class="article-card" id="preview-article-2">
+              <div class="article-image">
+                <img src="" alt="" loading="lazy" />
+
+              </div>
+              <div class="article-content">
+                <h3 class="article-title"></h3>
+                <p class="article-excerpt"></p>
+
+                <a href="#" class="btn-read">
+                  기사 원문 보기
+
+                </a>
+              </div>
+            </article>
+
+            <article class="article-card" id="preview-article-3">
+              <div class="article-image">
+                <img src="" alt="" loading="lazy" />
+
+              </div>
+              <div class="article-content">
+                <h3 class="article-title"></h3>
+                <p class="article-excerpt"></p>
+
+                <a href="#" class="btn-read">
+                  기사 원문 보기
+
+                </a>
+              </div>
+            </article>
+
+            <article class="article-card" id="preview-article-4">
+              <div class="article-image">
+                <img src="" alt="" loading="lazy" />
+
+              </div>
+              <div class="article-content">
+                <h3 class="article-title"></h3>
+                <p class="article-excerpt"></p>
+
+                <a href="#" class="btn-read">
+                  기사 원문 보기
+
+                </a>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <!-- ===== 3. RESEARCH ===== -->
+        <section class="section research-section">
+          <div class="section-header">
+
+            <h2 class="section-title">리서치</h2>
+            <span class="section-badge">DEEP DIVE</span>
+          </div>
+          <article class="research-card" id="preview-research-0">
+            <div class="research-image">
+              <img src="" alt="Research" loading="lazy" />
+
+            </div>
+            <div class="research-content">
+              <h3 class="research-title"></h3>
+              <p class="research-excerpt"></p>
+              <div class="research-meta">
+                <div class="research-author">
+                  <img class="author-avatar" src="" alt="" />
+                  <div class="author-info">
+                    <span class="author-name"></span>
+                    <span class="author-role"></span>
+                  </div>
+                </div>
+                <div class="research-stats">
+                  <span class="stat stat-readtime"></span>
+                  <span class="stat stat-charts"></span>
+                </div>
+              </div>
+              <a href="#" class="btn-read">
+                리서치 전문 보기
+
+              </a>
+            </div>
+          </article>
+        </section>
+
+        <!-- ===== 4. CRYPTO PRICES ===== -->
+        <section class="section crypto-section">
+          <div class="section-header">
+
+            <h2 class="section-title">암호화폐 시세</h2>
+            <span class="section-badge" id="cryptoUpdateTime">실시간</span>
+          </div>
+          <!-- Market Overview Stats -->
+          <div class="market-overview" id="marketOverview">
+            <div class="market-stat">
+              <span class="market-stat-label">전체 시가총액</span>
+              <div class="market-stat-values">
+                <span class="market-stat-value" id="totalMarketCap">-</span>
+                <span class="market-stat-sub" id="totalMarketCapKrw">-</span>
+              </div>
+            </div>
+            <div class="market-stat">
+              <span class="market-stat-label">24시간 거래량</span>
+              <div class="market-stat-values">
+                <span class="market-stat-value" id="totalVolume">-</span>
+                <span class="market-stat-sub" id="totalVolumeKrw">-</span>
+              </div>
+            </div>
+          </div>
+          <div class="crypto-section-content">
+            <!-- All Crypto Cards (unified grid) -->
+            <div class="crypto-grid" id="cryptoGrid">
+              <div class="crypto-loading">
+                <div class="loading-spinner"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===== 5. SCHEDULE / EVENTS ===== -->
+        <section class="section schedule-section">
+          <div class="section-header">
+
+            <h2 class="section-title">주요 일정</h2>
+            <span class="section-badge" id="scheduleMonth">2026년 2월</span>
+          </div>
+          <div class="schedule-columns">
+            <!-- 거시경제 일정 -->
+            <div class="schedule-column">
+              <div class="schedule-column-header">
+                <h3 class="schedule-col-title">거시경제 일정</h3>
+              </div>
+              <div class="schedule-list" id="macroEvents">
+                <!-- Rendered by JS -->
+              </div>
+            </div>
+            <!-- 토큰 일정 -->
+            <div class="schedule-column">
+              <div class="schedule-column-header">
+                <h3 class="schedule-col-title">토큰 일정</h3>
+              </div>
+              <div class="schedule-list" id="tokenEvents">
+                <!-- Rendered by JS -->
+              </div>
+            </div>
+          </div>
+          <a href="https://www.tokenpost.kr/calendar" class="cal-footer-link" target="_blank">전체 캘린더 보기</a>
+        </section>
+
+
+      </div> <!-- #newsletterPreview -->
+    </main> <!-- .preview-panel -->
+  </div> <!-- .app-container -->
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+
+</html>
