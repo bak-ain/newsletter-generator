@@ -738,13 +738,6 @@ async function exportEmailHtml() {
   const clone = container.cloneNode(true);
   clone.querySelectorAll('script, style, iframe, audio, video, embed, object, noscript, form, meta, button, input, select, textarea, .top-bar, .btn-fetch, .btn-primary-sm').forEach(el => el.remove());
 
-  // Remove HTML developer comments to save space
-  const walk = document.createTreeWalker(clone, NodeFilter.SHOW_COMMENT, null, false);
-  const comments = [];
-  let n;
-  while (n = walk.nextNode()) comments.push(n);
-  comments.forEach(c => c.remove());
-
   // 4. Email-safe properties (Gmail strips flex, grid, gap, aspect-ratio)
   const emailSafeProps = [
     'background-color', 'border', 'border-radius', 'border-bottom', 'border-top',
@@ -771,7 +764,7 @@ async function exportEmailHtml() {
     const original = allOriginals[i];
     if (!original) return;
     const computed = window.getComputedStyle(original);
-    let inlineStyle = '';
+    let inlineStyle = 'box-sizing:border-box;';
 
     // === Display & Layout (email-safe) ===
     const display = computed.display;
@@ -803,16 +796,8 @@ async function exportEmailHtml() {
       }
       inlineStyle += 'display:block;width:100%;';
     } else {
-      // Don't inject 'display: block' for block-level tags to save bytes
-      if (display === 'inline' || display === 'inline-block') {
-        inlineStyle += `display:${display};`;
-      } else if (!['DIV', 'P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'LI', 'SECTION', 'ARTICLE', 'HEADER', 'FOOTER'].includes(el.tagName)) {
-        inlineStyle += 'display:block;';
-      }
+      inlineStyle += `display:${display === 'inline' || display === 'inline-block' ? display : 'block'};`;
     }
-
-    const parentComputed = original.parentElement ? window.getComputedStyle(original.parentElement) : null;
-    const inheritableProps = ['color', 'font-family', 'font-size', 'font-weight', 'line-height', 'text-align', 'letter-spacing', 'word-break', 'overflow-wrap'];
 
     // === Inline email-safe CSS properties ===
     emailSafeProps.forEach(prop => {
@@ -820,19 +805,9 @@ async function exportEmailHtml() {
       if (!val) return;
       if (skipValues[prop] === val) return;
       if (val === 'initial' || val === 'none' || val === 'normal') return;
-
-      // Aggressive size reduction: Strip all 0px properties
-      if (val === '0px' || val === '0px 0px 0px 0px' || val === '0') return;
-      // Strip transparent backgrounds / colors
-      if (val === 'rgba(0, 0, 0, 0)' || val === 'transparent') return;
-      // Strip empty borders
-      if (prop.startsWith('border') && (val.includes('0px none') || val.includes('none 0px') || val.includes('transparent'))) return;
-
-      // [CRITICAL OPTIMIZATION] Inheritance Skipping
-      // If the parent has the exact same value for an inheritable property, skip it to save tons of space!
-      if (parentComputed && inheritableProps.includes(prop)) {
-        if (parentComputed.getPropertyValue(prop) === val) return;
-      }
+      if (prop === 'margin' && val === '0px') return;
+      if (prop === 'padding' && val === '0px') return;
+      if (prop === 'border' && val.includes('0px none')) return;
 
       // [Fix] Korean mail clients (Naver, Daum) aggressively strip "width" and "height" strings from <a> tags.
       // This turns 'line-height:22px' into 'line-:22px', causing syntax errors that break the entire style.
@@ -904,16 +879,11 @@ async function exportEmailHtml() {
       if (original.classList.contains('article-image')) {
         el.style.cssText += 'width:100%; height:160px; overflow:hidden; background-color:#f8f9fa;';
       }
-      // Re-add padding to the content wrapper
-      if (original.classList.contains('article-content')) {
-        el.style.cssText += 'padding:16px; display:block;';
-      }
-      // Fix vertical text cut-off by using max-height and explicit margins
       if (original.classList.contains('article-title')) {
-        el.style.cssText += 'display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-overflow:ellipsis;max-height:48px;line-height:24px;margin-bottom:12px;display:block;';
+        el.style.cssText += 'display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-overflow:ellipsis;height:48px;line-height:24px;margin-bottom:8px;';
       }
       if (original.classList.contains('article-excerpt')) {
-        el.style.cssText += 'display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-overflow:ellipsis;max-height:44px;line-height:22px;margin-bottom:16px;display:block;';
+        el.style.cssText += 'display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-overflow:ellipsis;height:44px;line-height:22px;margin-bottom:12px;';
       }
     }
 
@@ -1008,37 +978,18 @@ async function exportEmailHtml() {
         el.setAttribute('width', String(iconSize));
         el.setAttribute('height', String(iconSize));
       }
-      // Restore card gaps and inner flex alignment
-      if (original.classList.contains('crypto-card')) {
-        el.style.cssText += 'margin-bottom:12px; padding:16px; border:1px solid #E8ECF0; border-radius:12px; display:block;';
-      }
-      if (original.classList.contains('crypto-header')) {
-        el.style.cssText += 'margin-bottom:8px; display:block;';
-      }
-      // Fix gap between icon and coin name
-      if (original.classList.contains('crypto-name')) {
-        el.style.cssText += 'margin-left:8px; display:inline-block; vertical-align:middle;';
-      }
-      if (el.tagName === 'IMG' && original.classList.contains('crypto-icon')) {
-        el.style.display = 'inline-block';
-        el.style.verticalAlign = 'middle';
-      }
     }
 
     // === Schedule 섹션 여백 추가 ===
     if (original.closest && original.closest('.schedule-section')) {
       if (original.classList.contains('schedule-list')) {
-        el.style.cssText += 'padding:12px; display:block;';
+        el.style.cssText += 'padding:12px;';
       }
       if (original.classList.contains('schedule-item')) {
-        el.style.cssText += 'padding:16px 12px; margin-bottom:8px; border-bottom:1px solid #F0F3F6; display:block;';
+        el.style.cssText += 'padding:12px; margin-bottom:4px;';
       }
       if (original.classList.contains('schedule-column')) {
-        el.style.cssText += 'margin-bottom:24px; display:block;';
-      }
-      // Fix layout between date block and content block
-      if (original.classList.contains('schedule-date-block')) {
-        el.style.cssText += 'margin-right:16px; min-width:48px; text-align:center;';
+        el.style.cssText += 'margin-bottom:16px;';
       }
     }
 
