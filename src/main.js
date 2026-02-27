@@ -285,6 +285,20 @@ function renderSchedule() {
 }
 
 function renderEventList(events) {
+  const FLAG_MAP = {
+    '미국': 'https://flagcdn.com/w20/us.png',
+    '한국': 'https://flagcdn.com/w20/kr.png',
+    '한국은행': 'https://flagcdn.com/w20/kr.png',
+    '중국': 'https://flagcdn.com/w20/cn.png',
+    '일본': 'https://flagcdn.com/w20/jp.png',
+    '유로존': 'https://flagcdn.com/w20/eu.png',
+    '영국': 'https://flagcdn.com/w20/gb.png',
+    '독일': 'https://flagcdn.com/w20/de.png',
+    '프랑스': 'https://flagcdn.com/w20/fr.png',
+    '호주': 'https://flagcdn.com/w20/au.png',
+    '캐나다': 'https://flagcdn.com/w20/ca.png'
+  };
+
   return events
     .sort((a, b) => a.date.localeCompare(b.date))
     .map(event => {
@@ -296,9 +310,23 @@ function renderEventList(events) {
         medium: '관심',
         normal: '',
       };
+
       const tagHtml = event.importance !== 'normal'
         ? `<span class="schedule-tag ${event.importance}">${importanceLabel[event.importance]}</span>`
         : '';
+
+      // [국가명] 파싱 처리
+      let displayName = event.name;
+      const bracketMatch = displayName.match(/^\[(.*?)\]\s*/);
+
+      if (bracketMatch) {
+        const countryName = bracketMatch[1];
+        if (FLAG_MAP[countryName]) {
+          // 일치하는 국가가 있으면 [국가명]을 둥근 국기 이미지로 교체
+          const flagHtml = `<img src="${FLAG_MAP[countryName]}" alt="${countryName}" class="schedule-flag" />`;
+          displayName = displayName.replace(bracketMatch[0], flagHtml);
+        }
+      }
 
       return `
         <div class="schedule-item">
@@ -307,9 +335,11 @@ function renderEventList(events) {
             <span class="schedule-weekday">${weekday}</span>
           </div>
           <div class="schedule-info">
-            <div class="schedule-name">${event.name}</div>
+            <div class="schedule-name-wrapper">
+              <span class="schedule-name">${displayName}</span>
+              ${tagHtml}
+            </div>
             <div class="schedule-desc">${event.desc}</div>
-            ${tagHtml}
           </div>
         </div>
       `;
@@ -738,21 +768,49 @@ async function exportEmailHtml() {
   const clone = container.cloneNode(true);
   clone.querySelectorAll('script, style, iframe, audio, video, embed, object, noscript, form, meta, button, input, select, textarea, .top-bar, .btn-fetch, .btn-primary-sm').forEach(el => el.remove());
 
-  // 4. Email-safe properties (Gmail strips flex, grid, gap, aspect-ratio)
+  // 4. Email-safe properties
+  const rootComputed = window.getComputedStyle(container);
+  const rootFont = rootComputed.fontFamily;
+  const rootColor = rootComputed.color;
+
   const emailSafeProps = [
-    'background-color', 'border', 'border-radius', 'border-bottom', 'border-top',
-    'color', 'font-family', 'font-size', 'font-weight', 'line-height',
-    'margin', 'margin-bottom', 'margin-top', 'max-width',
-    'padding', 'padding-bottom', 'padding-top', 'padding-left', 'padding-right',
-    'text-align', 'text-decoration', 'text-transform',
+    'border', 'border-radius', 'border-bottom', 'border-top',
+    'font-size', 'font-weight', 'line-height',
+    'max-width', 'text-align', 'text-decoration', 'text-transform',
     'width', 'letter-spacing', 'overflow', 'word-break', 'overflow-wrap',
     'object-fit', 'min-width'
   ];
 
   const skipValues = {
-    'object-fit': 'fill', 'min-width': '0px', 'max-width': 'none',
-    'letter-spacing': 'normal', 'text-transform': 'none',
-    'word-break': 'normal', 'overflow-wrap': 'normal'
+    'object-fit': ['fill'], 'min-width': ['0px'], 'max-width': ['none', '100%'],
+    'letter-spacing': ['normal'], 'text-transform': ['none'],
+    'word-break': ['normal'], 'overflow-wrap': ['normal'], 'overflow': ['visible'],
+    'text-decoration': ['none solid rgb(0, 0, 0)'], 'font-weight': ['400', 'normal']
+  };
+
+  const getShorthand = (comp, base) => {
+    const t = comp.getPropertyValue(`${base}-top`);
+    const r = comp.getPropertyValue(`${base}-right`);
+    const b = comp.getPropertyValue(`${base}-bottom`);
+    const l = comp.getPropertyValue(`${base}-left`);
+    if (t === '0px' && r === '0px' && b === '0px' && l === '0px') return null;
+    if (t === b && r === l && t === r) return t;
+    if (t === b && r === l) return `${t} ${r}`;
+    if (r === l) return `${t} ${r} ${b}`;
+    return `${t} ${r} ${b} ${l}`;
+  };
+
+  const rgbToHex = (val) => {
+    if (!val || typeof val !== 'string') return val;
+    return val.replace(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)/g, (match, r, g, b) => {
+      if (match.includes('rgba') && match.includes(', 0)')) return 'transparent';
+      const hr = parseInt(r).toString(16).padStart(2, '0');
+      const hg = parseInt(g).toString(16).padStart(2, '0');
+      const hb = parseInt(b).toString(16).padStart(2, '0');
+      const hex = `#${hr}${hg}${hb}`;
+      if (hex[1] === hex[2] && hex[3] === hex[4] && hex[5] === hex[6]) return `#${hex[1]}${hex[3]}${hex[5]}`;
+      return hex;
+    });
   };
 
   const allOriginals = Array.from(container.querySelectorAll('*'));
@@ -764,7 +822,16 @@ async function exportEmailHtml() {
     const original = allOriginals[i];
     if (!original) return;
     const computed = window.getComputedStyle(original);
-    let inlineStyle = 'box-sizing:border-box;';
+
+    const margin = getShorthand(computed, 'margin');
+    const padding = getShorthand(computed, 'padding');
+    const border = rgbToHex(computed.getPropertyValue('border'));
+
+    let inlineStyle = '';
+    // Apply box-sizing only if padding or border will visibly affect layout
+    if (padding || (border && !border.includes('0px none'))) {
+      inlineStyle += 'box-sizing:border-box;';
+    }
 
     // === Display & Layout (email-safe) ===
     const display = computed.display;
@@ -793,50 +860,80 @@ async function exportEmailHtml() {
         if (original.classList.contains('headline-item')) {
           el.setAttribute('data-email-align', 'headline');
         }
+
+        // [Fix] 스케줄 아이템: 날짜 셀 고정폭, 텍스트 셀 나머지 차지
+        if (original.classList.contains('schedule-item')) {
+          el.setAttribute('data-email-align', 'schedule');
+        }
       }
       inlineStyle += 'display:block;width:100%;';
     } else {
-      inlineStyle += `display:${display === 'inline' || display === 'inline-block' ? display : 'block'};`;
+      // Omit display:block for native block elements to save bytes
+      const isNativeBlock = ['DIV', 'P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'SECTION', 'ARTICLE', 'HEADER', 'FOOTER'].includes(el.tagName);
+      if (!(isNativeBlock && display === 'block')) {
+        inlineStyle += `display:${display === 'inline' || display === 'inline-block' ? display : 'block'};`;
+      }
     }
 
-    // === Inline email-safe CSS properties ===
+    // === Shorthands & Inheritance ===
+    if (margin) inlineStyle += `margin:${margin};`;
+    if (padding) inlineStyle += `padding:${padding};`;
+
+    const font = computed.fontFamily;
+    // Omit default font if it matches root
+    if (font && font !== rootFont && el.id !== 'newsletterPreview') {
+      inlineStyle += `font-family:${font};`;
+    } else if (font && el.id === 'newsletterPreview') {
+      inlineStyle += `font-family:${font};`;
+    }
+
+    const color = computed.color;
+    // Omit default color if it matches root or is pure black
+    if (color && color !== 'rgba(0, 0, 0, 0)' && color !== 'rgb(0, 0, 0)' && color !== rootColor) {
+      inlineStyle += `color:${rgbToHex(color)};`;
+    } else if (color && el.id === 'newsletterPreview' && color !== 'rgb(0, 0, 0)') {
+      inlineStyle += `color:${rgbToHex(color)};`;
+    }
+
+    // === Background properties ===
+    if (computed.backgroundImage && computed.backgroundImage !== 'none') {
+      inlineStyle += `background-image:${computed.backgroundImage};`;
+      if (computed.backgroundSize && computed.backgroundSize !== 'auto') inlineStyle += `background-size:${computed.backgroundSize};`;
+      if (computed.backgroundPosition && computed.backgroundPosition !== '0% 0%') inlineStyle += `background-position:${computed.backgroundPosition};`;
+      if (computed.backgroundRepeat && computed.backgroundRepeat !== 'repeat') inlineStyle += `background-repeat:${computed.backgroundRepeat};`;
+    }
+    if (computed.backgroundColor && computed.backgroundColor !== 'rgba(0, 0, 0, 0)' && computed.backgroundColor !== 'transparent') {
+      inlineStyle += `background-color:${rgbToHex(computed.backgroundColor)};`;
+    }
+
+    // === Inline remaining explicit properties ===
     emailSafeProps.forEach(prop => {
       let val = computed.getPropertyValue(prop);
       if (!val) return;
-      if (skipValues[prop] === val) return;
+      if (skipValues[prop] && skipValues[prop].includes(val)) return;
       if (val === 'initial' || val === 'none' || val === 'normal') return;
-      if (prop === 'margin' && val === '0px') return;
-      if (prop === 'padding' && val === '0px') return;
       if (prop === 'border' && val.includes('0px none')) return;
 
-      // [Fix] Korean mail clients (Naver, Daum) aggressively strip "width" and "height" strings from <a> tags.
-      // This turns 'line-height:22px' into 'line-:22px', causing syntax errors that break the entire style.
-      if (el.tagName === 'A' && (prop.includes('width') || prop.includes('height'))) {
-        return;
-      }
+      if (el.tagName === 'A' && (prop.includes('width') || prop.includes('height'))) return;
 
-      // [Fix] Do not hardcode exact pixel dimensions from getComputedStyle!
-      // This forces elements into fixed rigid boxes and destroys mobile responsiveness.
-      // We handle layout dimensions via hybrid tables and 100% wrappers instead.
       if (['width', 'height', 'min-width', 'min-height', 'max-width', 'max-height'].includes(prop)) {
         if (val.includes('px')) {
-          if (el.tagName !== 'IMG') {
-            return;
-          }
+          if (el.tagName !== 'IMG') return;
         }
+        // Omit width:100% on divs where it's already block
+        if (prop === 'width' && val === '100%' && el.tagName === 'DIV' && display === 'block') return;
       }
 
-      // Font size reduction for email compactness
       if (prop === 'font-size' && val.includes('px')) {
         const px = parseFloat(val);
         if (px > 20) val = Math.round(px * 0.85) + 'px';
       }
 
-      inlineStyle += `${prop}:${val};`;
+      inlineStyle += `${prop}:${rgbToHex(val)};`;
     });
 
     if (el.id === 'newsletterPreview') {
-      inlineStyle += 'width:100%;max-width:600px;margin:0 auto;';
+      inlineStyle += 'width:100%;max-width:600px;margin:0 auto;word-break:keep-all;overflow-wrap:break-word;';
     }
 
     // === Images: explicit dimensions ===
@@ -848,21 +945,7 @@ async function exportEmailHtml() {
       }
     }
 
-    // === Background properties ===
-    if (computed.backgroundImage && computed.backgroundImage !== 'none') {
-      inlineStyle += `background-image:${computed.backgroundImage};`;
-      if (computed.backgroundSize) inlineStyle += `background-size:${computed.backgroundSize};`;
-      if (computed.backgroundPosition) inlineStyle += `background-position:${computed.backgroundPosition};`;
-      if (computed.backgroundRepeat) inlineStyle += `background-repeat:${computed.backgroundRepeat};`;
-      if (computed.backgroundColor && computed.backgroundColor !== 'rgba(0, 0, 0, 0)') {
-        inlineStyle += `background-color:${computed.backgroundColor};`;
-      }
-    }
-
     // === Overflow protection & Long URL handling ===
-    if (['H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'P', 'SPAN', 'DIV'].includes(el.tagName)) {
-      inlineStyle += 'word-break:keep-all;overflow-wrap:break-word;';
-    }
     if (el.tagName === 'A') {
       inlineStyle += 'word-break:break-all;overflow-wrap:break-word;';
     }
@@ -1152,6 +1235,12 @@ async function exportEmailHtml() {
         }
       }
 
+      // [Fix] schedule-item: 날짜 셀 고정폭(44px), 묶음 해제 방어
+      if (align === 'schedule' && idx === 0) {
+        td.setAttribute('width', '44');
+        tdStyle += 'width:44px;min-width:44px;text-align:center;';
+      }
+
       td.setAttribute('style', tdStyle);
       td.appendChild(child);
       tr.appendChild(td);
@@ -1168,9 +1257,23 @@ async function exportEmailHtml() {
   container.style.maxWidth = originalMaxWidth;
   container.style.width = originalWidth;
 
+  // 7.5. Aggressive DOM Attribute Cleanup to save maximum bytes
+  clone.querySelectorAll('*').forEach(el => {
+    el.removeAttribute('id');
+    el.removeAttribute('class');
+    // Strip all leftover data-* attributes safely and quickly
+    Array.from(el.attributes).forEach(attr => {
+      if (attr.name.startsWith('data-')) el.removeAttribute(attr.name);
+    });
+  });
+
   // 8. Build final HTML
+  // Minify HTML by removing spaces between tags (saves a huge amount of bytes)
+  let rawHtml = clone.outerHTML;
+  rawHtml = rawHtml.replace(/>\s+</g, '><');
+
   // Clipboard: Pure container only for Stibee compatibility (no html/head/body/meta tags)
-  const exportedHtml = clone.outerHTML;
+  const exportedHtml = rawHtml;
 
   // Preview: Full HTML document with viewport meta for proper mobile testing
   const previewHtml = `<!DOCTYPE html>
