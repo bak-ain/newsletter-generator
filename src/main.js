@@ -965,6 +965,21 @@ async function exportEmailHtml() {
 
     el.setAttribute('style', inlineStyle);
 
+    // [Fix] Featured article .article-image: force max-height:fit-content
+    // getComputedStyle resolves fit-content → pixel value, so we override it here
+    if (original.classList && original.classList.contains('article-image')) {
+      const isFeatured = original.closest && original.closest('.featured');
+      if (isFeatured) {
+        el.style.maxHeight = 'fit-content';
+      }
+    }
+    if (el.tagName === 'IMG' && original.parentElement && original.parentElement.classList.contains('article-image')) {
+      const isFeaturedImg = original.parentElement.closest && original.parentElement.closest('.featured');
+      if (isFeaturedImg) {
+        el.style.maxHeight = 'fit-content';
+      }
+    }
+
     // === Post-processing: article text overflow & button alignment ===
     // Article grid cards (2-5번): title, excerpt 2줄 제한
     // Article grid cards (2-5번): height normalization for equal-height look
@@ -983,7 +998,7 @@ async function exportEmailHtml() {
     // article-image 내 img: 
     if (el.tagName === 'IMG' && original.parentElement && original.parentElement.classList.contains('article-image')) {
       el.style.cssText += 'width:100%; height:auto; display:block; object-fit:cover;';
-      // If parent has fixed height, we can force height:100% or auto
+      // If parent has fixed height (article-grid cards only), force matching height
       if (original.parentElement.closest && original.parentElement.closest('.article-grid')) {
         el.style.height = '160px';
       }
