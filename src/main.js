@@ -990,19 +990,6 @@ async function exportEmailHtml() {
       el.removeAttribute('height');
     }
 
-    // [Fix] Featured article .article-image + img: force max-height to fit-content
-    // Must run AFTER all other post-processing. Uses direct string replace because
-    // el.style.maxHeight='fit-content' is silently rejected by some browsers.
-    if (original.classList && original.classList.contains('article-image')) {
-      if (original.closest && original.closest('.featured')) {
-        el.style.cssText = el.style.cssText.replace(/max-height:\s*[^;]+;?/g, 'max-height:fit-content;');
-      }
-    }
-    if (el.tagName === 'IMG' && original.parentElement && original.parentElement.classList.contains('article-image')) {
-      if (original.parentElement.closest && original.parentElement.closest('.featured')) {
-        el.style.cssText = el.style.cssText.replace(/max-height:\s*[^;]+;?/g, 'max-height:fit-content;');
-      }
-    }
 
     // ==== BULLETPROOF BUTTONS ====
     // 버튼의 배경, 패딩을 A 태그에서 분리하여 테이블 TD로 옮김 (네이버 메일 등에서 A태그 width 무시 문제 해결)
@@ -1295,6 +1282,11 @@ async function exportEmailHtml() {
   // Minify HTML by removing spaces between tags (saves a huge amount of bytes)
   let rawHtml = clone.outerHTML;
   rawHtml = rawHtml.replace(/>\s+</g, '><');
+
+  // [Fix] Featured article image: force max-height:fit-content
+  // Chromium CSSOM silently rejects fit-content for max-height, so we must
+  // do the replacement on the raw HTML string AFTER serialization.
+  rawHtml = rawHtml.replace(/max-height:\s*\d+px/g, 'max-height:fit-content');
 
   // Clipboard: Pure container only for Stibee compatibility (no html/head/body/meta tags)
   const exportedHtml = rawHtml;
