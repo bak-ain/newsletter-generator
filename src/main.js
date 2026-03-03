@@ -916,12 +916,17 @@ async function exportEmailHtml() {
 
       if (el.tagName === 'A' && (prop.includes('width') || prop.includes('height'))) return;
 
-      if (['width', 'height', 'min-width', 'min-height', 'max-width', 'max-height'].includes(prop)) {
+      if (['width', 'height', 'min-width', 'min-height', 'max-width'].includes(prop)) {
         if (val.includes('px')) {
           if (el.tagName !== 'IMG') return;
         }
         // Omit width:100% on divs where it's already block
         if (prop === 'width' && val === '100%' && el.tagName === 'DIV' && display === 'block') return;
+      }
+
+      // [Fix] Allow max-height: fit-content specifically for images
+      if (prop === 'max-height') {
+        if (val.includes('px') && el.tagName !== 'IMG') return;
       }
 
       if (prop === 'font-size' && val.includes('px')) {
@@ -941,7 +946,12 @@ async function exportEmailHtml() {
       const w = original.offsetWidth;
       if (w > 0) {
         el.setAttribute('width', Math.min(w, 600));
-        inlineStyle += `width:100%;max-width:${w}px;height:auto;`;
+        // Only append explicitly calculated max-width if it isn't overriding fit-content or already set
+        if (!inlineStyle.includes('max-height:fit-content')) {
+          inlineStyle += `width:100%;max-width:${w}px;height:auto;`;
+        } else {
+          inlineStyle += `width:100%;max-width:${w}px;`; // Exclude hardcoded height:auto to prioritize max-height
+        }
       }
     }
 
