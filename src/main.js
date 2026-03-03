@@ -778,11 +778,11 @@ async function exportEmailHtml() {
     'font-size', 'font-weight', 'line-height',
     'max-width', 'text-align', 'text-decoration', 'text-transform',
     'width', 'letter-spacing', 'overflow', 'word-break', 'overflow-wrap',
-    'object-fit', 'min-width'
+    'object-fit', 'min-width', 'max-height'
   ];
 
   const skipValues = {
-    'object-fit': ['fill'], 'min-width': ['0px'], 'max-width': ['none', '100%'],
+    'object-fit': ['fill'], 'min-width': ['0px'], 'max-width': ['none', '100%'], 'max-height': ['none'],
     'letter-spacing': ['normal'], 'text-transform': ['none'],
     'word-break': ['normal'], 'overflow-wrap': ['normal'], 'overflow': ['visible'],
     'text-decoration': ['none solid rgb(0, 0, 0)'], 'font-weight': ['400', 'normal']
