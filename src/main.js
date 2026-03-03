@@ -965,21 +965,6 @@ async function exportEmailHtml() {
 
     el.setAttribute('style', inlineStyle);
 
-    // [Fix] Featured article .article-image: force max-height:fit-content
-    // getComputedStyle resolves fit-content → pixel value, so we override it here
-    if (original.classList && original.classList.contains('article-image')) {
-      const isFeatured = original.closest && original.closest('.featured');
-      if (isFeatured) {
-        el.style.maxHeight = 'fit-content';
-      }
-    }
-    if (el.tagName === 'IMG' && original.parentElement && original.parentElement.classList.contains('article-image')) {
-      const isFeaturedImg = original.parentElement.closest && original.parentElement.closest('.featured');
-      if (isFeaturedImg) {
-        el.style.maxHeight = 'fit-content';
-      }
-    }
-
     // === Post-processing: article text overflow & button alignment ===
     // Article grid cards (2-5번): title, excerpt 2줄 제한
     // Article grid cards (2-5번): height normalization for equal-height look
@@ -1003,6 +988,20 @@ async function exportEmailHtml() {
         el.style.height = '160px';
       }
       el.removeAttribute('height');
+    }
+
+    // [Fix] Featured article .article-image + img: force max-height to fit-content
+    // Must run AFTER all other post-processing. Uses direct string replace because
+    // el.style.maxHeight='fit-content' is silently rejected by some browsers.
+    if (original.classList && original.classList.contains('article-image')) {
+      if (original.closest && original.closest('.featured')) {
+        el.style.cssText = el.style.cssText.replace(/max-height:\s*[^;]+;?/g, 'max-height:fit-content;');
+      }
+    }
+    if (el.tagName === 'IMG' && original.parentElement && original.parentElement.classList.contains('article-image')) {
+      if (original.parentElement.closest && original.parentElement.closest('.featured')) {
+        el.style.cssText = el.style.cssText.replace(/max-height:\s*[^;]+;?/g, 'max-height:fit-content;');
+      }
     }
 
     // ==== BULLETPROOF BUTTONS ====
