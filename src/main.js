@@ -207,20 +207,20 @@ async function fetchScheduleFromSheets() {
     macroEvents = [];
     tokenEvents = [];
 
-    // 오늘 ~ 2주 후까지만 필터링
+    // 오늘 ~ 1주 후까지만 필터링
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const twoWeeksLater = new Date(today);
-    twoWeeksLater.setDate(twoWeeksLater.getDate() + 14);
+    const oneWeekLater = new Date(today);
+    oneWeekLater.setDate(oneWeekLater.getDate() + 7);
 
     rows.forEach(row => {
       const [date, name, category, importance] = row;
       if (!date || !name) return;
 
-      // 날짜 필터: 지난 일정 제외, 2주 이내만
+      // 날짜 필터: 지난 일정 제외, 1주 이내만
       const eventDate = new Date(date);
       if (isNaN(eventDate.getTime())) return;
-      if (eventDate < today || eventDate > twoWeeksLater) return;
+      if (eventDate < today || eventDate > oneWeekLater) return;
 
       const event = {
         date: date,
@@ -640,10 +640,29 @@ async function fetchMeta(url, block) {
       }
     }
 
+    // YouTube 동영상 썸네일 추출 (동영상만 있는 기사 대응)
+    const getYouTubeThumbnail = () => {
+      const iframe = doc.querySelector('iframe[src*="youtube.com"], iframe[src*="youtu.be"]');
+      if (iframe) {
+        const src = iframe.getAttribute('src') || '';
+        // YouTube URL 패턴: /embed/VIDEO_ID, /v/VIDEO_ID, youtu.be/VIDEO_ID
+        const match = src.match(/(?:embed\/|v\/|youtu\.be\/)([\w-]{11})/);
+        if (match) {
+          console.log('[Fetch] YouTube video detected, ID:', match[1]);
+          return `https://img.youtube.com/vi/${match[1]}/maxresdefault.jpg`;
+        }
+      }
+      return null;
+    };
+
+    // 이미지 추출: 본문 이미지 → og:image(동영상 썸네일 포함) → YouTube 썸네일 순서
+    const articleImage = selectFirst(['.research_content_wrap img', '.article_main_image_wrap img', '.view_content_image img', '.article_content img']);
+    const finalImage = resolveUrl(articleImage || getMeta(['og:image', 'twitter:image']) || getYouTubeThumbnail() || '');
+
     const meta = {
       title: selectFirst(['.view_item_title', '#viewLocation .view_top_title', 'h1.view_top_title', 'h1']) || getMeta(['og:title', 'twitter:title']) || doc.title || '',
       description,
-      image: resolveUrl(selectFirst(['.research_content_wrap img', '.article_main_image_wrap img', '.view_content_image img', 'article img']) || getMeta(['og:image', 'twitter:image']) || ''),
+      image: finalImage,
       author: selectFirst(['.research_analyst_wrap .research_analyst_text', '.research_analyst_wrap', '.contributor_item_text span', '.author', '.writer']) || '',
       profileImage,
     };

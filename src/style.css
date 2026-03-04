@@ -1198,6 +1198,7 @@ button {
   line-height: 1.4;
   display: inline-block;
   vertical-align: middle;
+  margin-right: 5px;
 }
 
 .schedule-flag {
@@ -1225,7 +1226,6 @@ button {
   font-weight: 600;
   padding: 2px 6px;
   border-radius: 4px;
-  margin-left: 6px;
 }
 
 .schedule-tag.important {
