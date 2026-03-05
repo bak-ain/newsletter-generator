@@ -795,6 +795,8 @@ async function exportEmailHtml() {
   const rootComputed = window.getComputedStyle(container);
   const rootFont = rootComputed.fontFamily;
   const rootColor = rootComputed.color;
+  const rootFontSize = rootComputed.fontSize;
+  const rootLineHeight = rootComputed.lineHeight;
 
   const emailSafeProps = [
     'border', 'border-radius', 'border-bottom', 'border-top',
@@ -805,10 +807,11 @@ async function exportEmailHtml() {
   ];
 
   const skipValues = {
-    'object-fit': ['fill'], 'min-width': ['0px'], 'max-width': ['none', '100%'], 'max-height': ['none'],
+    'object-fit': ['fill'], 'min-width': ['0px', 'auto'], 'max-width': ['none', '100%'], 'max-height': ['none'],
     'letter-spacing': ['normal'], 'text-transform': ['none'],
     'word-break': ['normal'], 'overflow-wrap': ['normal'], 'overflow': ['visible'],
-    'text-decoration': ['none solid rgb(0, 0, 0)'], 'font-weight': ['400', 'normal']
+    'text-decoration': ['none solid rgb(0, 0, 0)'], 'font-weight': ['400', 'normal'],
+    'border-radius': ['0px'], 'text-align': ['start', 'left'],
   };
 
   const getShorthand = (comp, base) => {
@@ -936,6 +939,11 @@ async function exportEmailHtml() {
       if (skipValues[prop] && skipValues[prop].includes(val)) return;
       if (val === 'initial' || val === 'none' || val === 'normal') return;
       if (prop === 'border' && val.includes('0px none')) return;
+      // Skip zero-width border-bottom/top (massive bloat source)
+      if ((prop === 'border-bottom' || prop === 'border-top') && val.includes('0px none')) return;
+      // Skip inherited font-size and line-height (matches root)
+      if (prop === 'font-size' && val === rootFontSize && el.id !== 'newsletterPreview') return;
+      if (prop === 'line-height' && val === rootLineHeight && el.id !== 'newsletterPreview') return;
 
       if (el.tagName === 'A' && (prop.includes('width') || prop.includes('height'))) return;
 
