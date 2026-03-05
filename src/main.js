@@ -305,6 +305,7 @@ function renderEventList(events) {
 
   return events
     .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(0, 10)
     .map(event => {
       const d = new Date(event.date);
       const day = d.getDate();
@@ -797,6 +798,7 @@ async function exportEmailHtml() {
   const rootColor = rootComputed.color;
   const rootFontSize = rootComputed.fontSize;
   const rootLineHeight = rootComputed.lineHeight;
+  const rootTextAlign = rootComputed.textAlign;
 
   const emailSafeProps = [
     'border', 'border-radius', 'border-bottom', 'border-top',
@@ -811,7 +813,7 @@ async function exportEmailHtml() {
     'letter-spacing': ['normal'], 'text-transform': ['none'],
     'word-break': ['normal'], 'overflow-wrap': ['normal'], 'overflow': ['visible'],
     'text-decoration': ['none solid rgb(0, 0, 0)'], 'font-weight': ['400', 'normal'],
-    'border-radius': ['0px'], 'text-align': ['start', 'left'],
+    'border-radius': ['0px'],
   };
 
   const getShorthand = (comp, base) => {
@@ -939,11 +941,15 @@ async function exportEmailHtml() {
       if (skipValues[prop] && skipValues[prop].includes(val)) return;
       if (val === 'initial' || val === 'none' || val === 'normal') return;
       if (prop === 'border' && val.includes('0px none')) return;
-      // Skip zero-width border-bottom/top (massive bloat source)
+      // Skip invisible border-bottom/border-top (0px none #color)
       if ((prop === 'border-bottom' || prop === 'border-top') && val.includes('0px none')) return;
-      // Skip inherited font-size and line-height (matches root)
-      if (prop === 'font-size' && val === rootFontSize && el.id !== 'newsletterPreview') return;
-      if (prop === 'line-height' && val === rootLineHeight && el.id !== 'newsletterPreview') return;
+
+      // Skip inherited font-size, line-height on non-root elements (email clients inherit these)
+      if (el.id !== 'newsletterPreview') {
+        if (prop === 'font-size' && val === rootFontSize) return;
+        if (prop === 'line-height' && val === rootLineHeight) return;
+        // NOTE: text-align은 이메일 클라이언트에서 상속되지 않으므로 반드시 유지
+      }
 
       if (el.tagName === 'A' && (prop.includes('width') || prop.includes('height'))) return;
 
