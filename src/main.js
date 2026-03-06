@@ -304,6 +304,7 @@ function renderEventList(events) {
   };
 
   return events
+    .filter(ev => !ev._excluded)
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(0, 10)
     .map(event => {
@@ -701,7 +702,6 @@ async function fetchMeta(url, block) {
 
 function initScheduleEditor() {
   const container = document.getElementById('schedule-edit-container');
-  const addBtn = document.getElementById('btn-add-schedule');
   const fetchBtn = document.getElementById('btn-fetch-schedule');
 
   // 초기 로드: 구글 시트에서 데이터 fetch
@@ -718,15 +718,6 @@ function initScheduleEditor() {
       fetchBtn.textContent = '📊 시트에서 불러오기';
     });
   }
-
-  // 수동 일정 추가 버튼
-  if (addBtn) {
-    addBtn.addEventListener('click', () => {
-      tokenEvents.push({ date: new Date().toISOString().slice(0, 10), name: '새 일정', desc: '', importance: 'normal' });
-      renderSchedule();
-      renderScheduleInputs();
-    });
-  }
 }
 
 function renderScheduleInputs() {
@@ -734,36 +725,78 @@ function renderScheduleInputs() {
   if (!container) return;
   container.innerHTML = '';
 
-  // 거시경제 + 토큰일정 통합 표시
+  // 카테고리별 포함/제외 상태 계산
+  const buildCategoryItems = (events, typeName) => {
+    const sorted = events
+      .map((ev, i) => ({ ...ev, _type: typeName, _arr: events, _idx: i }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    const included = sorted.filter(ev => !ev._excluded);
+    const inTop10 = new Set(included.slice(0, 10).map(ev => ev._idx));
+
+    return sorted.map(ev => ({
+      ...ev,
+      _isIncluded: !ev._excluded,
+      _isInPreview: !ev._excluded && inTop10.has(ev._idx),
+    }));
+  };
+
   const allEvents = [
-    ...macroEvents.map((ev, i) => ({ ...ev, _type: '거시경제', _arr: macroEvents, _idx: i })),
-    ...tokenEvents.map((ev, i) => ({ ...ev, _type: '토큰일정', _arr: tokenEvents, _idx: i })),
-  ].sort((a, b) => a.date.localeCompare(b.date));
+    ...buildCategoryItems(macroEvents, '거시경제'),
+    ...buildCategoryItems(tokenEvents, '토큰일정'),
+  ].sort((a, b) => {
+    // 포함된 항목 먼저, 그 다음 제외된 항목
+    if (a._isIncluded !== b._isIncluded) return a._isIncluded ? -1 : 1;
+    return a.date.localeCompare(b.date);
+  });
+
+  let addedExcludedSeparator = false;
 
   allEvents.forEach(ev => {
+    // 제외된 항목 시작 시 구분선 추가
+    if (!ev._isIncluded && !addedExcludedSeparator) {
+      addedExcludedSeparator = true;
+      const separator = document.createElement('div');
+      separator.style.cssText = 'display:flex; align-items:center; gap:8px; margin:12px 0 8px; font-size:10px; color:#999;';
+      separator.innerHTML = '<div style="flex:1; height:1px; background:#ddd;"></div><span>제외된 일정</span><div style="flex:1; height:1px; background:#ddd;"></div>';
+      container.appendChild(separator);
+    }
+
     const item = document.createElement('div');
     item.className = 'field-group';
     item.style.padding = '10px';
-    item.style.background = '#fcfcfc';
     item.style.border = '1px solid #eee';
     item.style.borderRadius = '6px';
     item.style.marginBottom = '8px';
     item.style.position = 'relative';
 
+    if (ev._isIncluded) {
+      item.style.background = '#fcfcfc';
+    } else {
+      item.style.background = '#f5f5f5';
+      item.style.opacity = '0.6';
+    }
+
     const typeColor = ev._type === '거시경제' ? '#3b82f6' : '#f59e0b';
     const typeLabel = ev._type === '거시경제' ? '거시' : '토큰';
+
+    const btnStyle = ev._isIncluded
+      ? 'background:#ff4444;color:white;'
+      : 'background:#22c55e;color:white;';
+    const btnText = ev._isIncluded ? '×' : '+';
 
     item.innerHTML = `
       <div style="display: flex; gap: 6px; align-items: center; margin-bottom: 4px;">
         <span style="font-size:9px; padding:2px 6px; border-radius:4px; background:${typeColor}; color:white;">${typeLabel}</span>
         <span style="font-size:10px; color:#888;">${ev.date}</span>
+        ${!ev._isInPreview && ev._isIncluded ? '<span style="font-size:9px; color:#f59e0b;">⚠ 10개 초과</span>' : ''}
       </div>
       <div style="font-size:12px; font-weight:500; color:#333;">${ev.name}</div>
-      <button class="btn-del-ev" style="position:absolute;top:-5px;right:-5px;background:#ff4444;color:white;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;cursor:pointer;border:none;">×</button>
+      <button class="btn-toggle-ev" style="position:absolute;top:-5px;right:-5px;${btnStyle}width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;cursor:pointer;border:none;">${btnText}</button>
     `;
 
-    item.querySelector('.btn-del-ev').addEventListener('click', () => {
-      ev._arr.splice(ev._idx, 1);
+    item.querySelector('.btn-toggle-ev').addEventListener('click', () => {
+      ev._arr[ev._idx]._excluded = !ev._arr[ev._idx]._excluded;
       renderSchedule();
       renderScheduleInputs();
     });
@@ -774,6 +807,59 @@ function renderScheduleInputs() {
   if (allEvents.length === 0) {
     container.innerHTML = '<p style="font-size:11px; color:#999; text-align:center; padding:12px;">일정이 없습니다. "시트에서 불러오기" 버튼을 눌러주세요.</p>';
   }
+
+  // 카테고리별 수동 추가 버튼
+  const addBtnRow = document.createElement('div');
+  addBtnRow.style.cssText = 'display:flex; gap:8px; margin-top:8px;';
+
+  const createAddBtn = (label, color, targetArr, type) => {
+    const btn = document.createElement('button');
+    btn.textContent = `+ ${label} 추가`;
+    btn.style.cssText = `flex:1; padding:8px; border:1px dashed ${color}; border-radius:6px; background:transparent; color:${color}; font-size:11px; font-weight:600; cursor:pointer;`;
+    btn.addEventListener('click', () => {
+      const form = document.createElement('div');
+      form.style.cssText = 'padding:10px; background:#f8f9fa; border:1px solid #ddd; border-radius:6px; margin-top:8px;';
+      form.innerHTML = `
+        <div style="font-size:10px; font-weight:600; color:${color}; margin-bottom:6px;">새 ${label} 일정</div>
+        <div style="display:flex; gap:4px; margin-bottom:4px;">
+          <input type="date" class="add-ev-date" value="${new Date().toISOString().slice(0, 10)}" style="flex:1; padding:4px 6px; border:1px solid #ddd; border-radius:4px; font-size:11px;">
+          <select class="add-ev-importance" style="padding:4px 6px; border:1px solid #ddd; border-radius:4px; font-size:11px;">
+            <option value="important">중요</option>
+            <option value="medium">관심</option>
+            <option value="normal" selected>일반</option>
+          </select>
+        </div>
+        <input type="text" class="add-ev-name" placeholder="${type === 'macro' ? '[국가명] 일정명' : '$TOKEN: 설명'}" style="width:100%; padding:4px 6px; border:1px solid #ddd; border-radius:4px; font-size:11px; margin-bottom:4px; box-sizing:border-box;">
+        <div style="display:flex; gap:4px;">
+          <button class="add-ev-confirm" style="flex:1; padding:4px; background:${color}; color:white; border:none; border-radius:4px; font-size:10px; cursor:pointer;">추가</button>
+          <button class="add-ev-cancel" style="flex:1; padding:4px; background:#ccc; color:white; border:none; border-radius:4px; font-size:10px; cursor:pointer;">취소</button>
+        </div>
+      `;
+
+      container.querySelectorAll('.add-ev-form').forEach(f => f.remove());
+      form.className = 'add-ev-form';
+      container.appendChild(form);
+
+      form.querySelector('.add-ev-confirm').addEventListener('click', () => {
+        const name = form.querySelector('.add-ev-name').value.trim();
+        const date = form.querySelector('.add-ev-date').value;
+        const importance = form.querySelector('.add-ev-importance').value;
+        if (!name) return alert('일정명을 입력해주세요.');
+        targetArr.push({ date, name, desc: '', importance });
+        renderSchedule();
+        renderScheduleInputs();
+      });
+
+      form.querySelector('.add-ev-cancel').addEventListener('click', () => {
+        form.remove();
+      });
+    });
+    return btn;
+  };
+
+  addBtnRow.appendChild(createAddBtn('거시경제', '#3b82f6', macroEvents, 'macro'));
+  addBtnRow.appendChild(createAddBtn('토큰', '#f59e0b', tokenEvents, 'token'));
+  container.appendChild(addBtnRow);
 }
 
 async function exportEmailHtml() {
